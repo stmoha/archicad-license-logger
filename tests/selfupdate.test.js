@@ -46,14 +46,15 @@ function idFromKey(key) {
     assert.strictEqual(id, idFromKey(manifest.key));
     console.log('  ok  extension ID is fixed by the manifest key (' + id + ')');
 
-    assert.strictEqual(await sw.evaluate(() => checkForUpdate()), false);
+    // Go through the extension's own one-at-a-time queue, as its timer does.
+    assert.strictEqual(await sw.evaluate(() => serial(() => checkForUpdate())), false);
     console.log('  ok  no reload when the version on disk is unchanged');
 
     const next = manifest.version.replace(/(\d+)$/, (n) => String(Number(n) + 1));
     fs.writeFileSync(path.join(ext, 'manifest.json'), JSON.stringify(Object.assign({}, manifest, { version: next }), null, 2));
     fs.appendFileSync(path.join(ext, 'lib.js'), '\nself.__pulledMarker = "new code";\n');
 
-    assert.strictEqual(await sw.evaluate(() => checkForUpdate()).catch(() => true), true);
+    assert.strictEqual(await sw.evaluate(() => serial(() => checkForUpdate())).catch(() => true), true);
     let after = null;
     for (let i = 0; i < 40 && !after; i++) {
       await new Promise((r) => setTimeout(r, 500));
@@ -66,7 +67,7 @@ function idFromKey(key) {
     assert.strictEqual(new URL(after.url()).host, id);
     assert.strictEqual(await after.evaluate(() => self.__pulledMarker), 'new code');
     const st = await after.evaluate(async () => (await chrome.storage.local.get('state')).state || {});
-    assert.strictEqual(st.updatedFrom, manifest.version);
+    assert.strictEqual(st.updatedFrom, manifest.version, 'state after reload: ' + JSON.stringify(st));
     console.log(`  ok  new files on disk: reloaded itself ${manifest.version} -> ${next}, same ID, new code running`);
     console.log('\n3 checks passed');
   } finally {
