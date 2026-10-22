@@ -33,7 +33,10 @@ function idFromKey(key) {
   const browser = process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : { channel: 'chromium' };
   const ctx = await chromium.launchPersistentContext(path.join(work, 'profile'), Object.assign(browser, {
     headless: true,
-    args: [`--load-extension=${ext}`, '--no-sandbox', '--enable-unsafe-extension-debugging'],
+    args: [`--load-extension=${ext}`, '--no-sandbox', '--enable-unsafe-extension-debugging',
+      // Keep the test offline from Graphisoft and Google, so the extension's own
+      // startup reading and sign-in tab don't depend on the network.
+      '--host-resolver-rules=MAP *.graphisoft.com ~NOTFOUND, MAP *.google.com ~NOTFOUND, MAP *.googleusercontent.com ~NOTFOUND'],
     ignoreDefaultArgs: ['--disable-extensions', '--disable-component-extensions-with-background-pages'],
   }));
   try {
@@ -69,4 +72,9 @@ function idFromKey(key) {
   } finally {
     await ctx.close();
   }
-})().catch((e) => { console.error('FAILED:', e); process.exit(1); });
+})().catch((e) => {
+  console.error('FAILED:', e);
+  // Make the reason readable from the pull request's checks, not only the raw log.
+  if (process.env.GITHUB_ACTIONS) console.log(`::error title=Self-update test::${String(e && e.stack || e).replace(/\r?\n/g, '%0A')}`);
+  process.exit(1);
+});
