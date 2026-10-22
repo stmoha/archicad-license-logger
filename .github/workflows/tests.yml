@@ -7,7 +7,8 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    # Pinned: Playwright 1.56 supports Ubuntu 24.04; ubuntu-latest is moving to 26.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
         with:
@@ -22,10 +23,11 @@ jobs:
       - name: Logger, alerts and Apps Script tests
         run: npm test
 
+      - name: Install Chromium for the browser test
+        run: npx playwright install --with-deps chromium
+
       - name: Self-update test in real Chromium
-        run: |
-          npx playwright install --with-deps chromium
-          npm run test:browser
+        run: npm run test:browser
 
       - name: Extension version was bumped
         if: github.event_name == 'pull_request'
