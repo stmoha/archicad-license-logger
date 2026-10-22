@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Archicad License Logger</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --fg: #1d2330;
+    --muted: #667085;
+    --line: #e4e7ec;
+    --panel: #f6f7f9;
+    --accent: #1f3864;
+    --ok: #2e7d32;
+    --warn: #b26a00;
+    --bad: #c62828;
+    --track: #e4e7ec;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #17191d;
+      --fg: #e8eaee;
+      --muted: #9aa3b2;
+      --line: #2c3038;
+      --panel: #1f2228;
+      --accent: #8fb0e8;
+      --ok: #5cb85f;
+      --warn: #e0a030;
+      --bad: #ef6b6b;
+      --track: #2c3038;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    width: 340px;
+    background: var(--bg);
+    color: var(--fg);
+    font: 13px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px 0;
+  }
+  h1 { margin: 0; font-size: 13px; font-weight: 600; color: var(--muted); letter-spacing: .02em; }
+  a { color: var(--accent); }
+  section { padding: 10px 14px; }
+  .count { display: flex; align-items: baseline; gap: 6px; }
+  .count .big { font-size: 34px; font-weight: 650; font-variant-numeric: tabular-nums; line-height: 1.1; }
+  .count .of { color: var(--muted); font-size: 14px; }
+  .asof { color: var(--muted); font-size: 12px; margin-top: 2px; }
+  .meter { height: 8px; border-radius: 4px; background: var(--track); overflow: hidden; margin-top: 10px; }
+  .meter > div { height: 100%; width: 0; background: var(--ok); transition: width .2s; }
+  .meter.warn > div { background: var(--warn); }
+  .meter.bad > div { background: var(--bad); }
+  ul.users { list-style: none; margin: 10px 0 0; padding: 0; max-height: 170px; overflow-y: auto; }
+  ul.users li { display: flex; justify-content: space-between; gap: 8px; padding: 3px 0; border-bottom: 1px solid var(--line); }
+  ul.users li:last-child { border-bottom: 0; }
+  ul.users .pc { color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .notice { border-radius: 6px; padding: 8px 10px; background: var(--panel); margin: 0 14px 6px; }
+  .notice.bad { border-left: 3px solid var(--bad); }
+  .notice.warn { border-left: 3px solid var(--warn); }
+  .notice button { margin-top: 6px; }
+  .meta { color: var(--muted); font-size: 12px; padding: 4px 14px 10px; }
+  .meta div + div { margin-top: 2px; }
+  .actions { display: flex; gap: 8px; padding: 0 14px 12px; }
+  button {
+    font: inherit;
+    border: 1px solid var(--line);
+    background: var(--panel);
+    color: var(--fg);
+    border-radius: 6px;
+    padding: 6px 12px;
+    cursor: pointer;
+  }
+  button.primary { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+  button:disabled { opacity: .6; cursor: default; }
+  details { border-top: 1px solid var(--line); }
+  summary { padding: 10px 14px; cursor: pointer; color: var(--muted); font-weight: 600; }
+  form { padding: 0 14px 14px; display: grid; gap: 8px; }
+  label { display: grid; gap: 3px; font-size: 12px; color: var(--muted); }
+  input[type=text], input[type=url], input[type=number] {
+    font: inherit;
+    color: var(--fg);
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 5px;
+    padding: 5px 7px;
+    width: 100%;
+  }
+  .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .check { display: flex; align-items: center; gap: 6px; color: var(--fg); font-size: 13px; }
+  .formmsg { font-size: 12px; min-height: 1em; }
+  .formmsg.ok { color: var(--ok); }
+  .formmsg.bad { color: var(--bad); }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+  <header>
+    <h1>ARCHICAD LICENSES</h1>
+    <a id="openSheet" href="#" target="_blank">Open sheet</a>
+  </header>
+
+  <section>
+    <div class="count">
+      <span class="big" id="inUse">–</span>
+      <span class="of" id="ofTotal">in use</span>
+    </div>
+    <div class="asof" id="asOf">No reading yet</div>
+    <div class="meter" id="meter"><div></div></div>
+    <ul class="users" id="users"></ul>
+  </section>
+
+  <div class="notice bad hidden" id="gsNotice">
+    <div id="gsMsg"></div>
+    <div id="signInHelp" class="hidden" style="margin-top:4px">Signing in needs your password and authenticator code. Use the pinned Graphisoft tab; readings resume as soon as you're in.</div>
+    <button id="signIn" class="hidden">Open Graphisoft to sign in</button>
+  </div>
+  <div class="notice warn hidden" id="sheetNotice"><div id="sheetMsg"></div></div>
+
+  <div class="meta">
+    <div id="sheetStatus"></div>
+    <div id="nextReading"></div>
+  </div>
+
+  <div class="actions">
+    <button class="primary" id="readNow">Read now</button>
+  </div>
+
+  <details id="settingsBox">
+    <summary>Settings</summary>
+    <form id="settings">
+      <label>Web app URL (from the sheet's Apps Script deployment)
+        <input type="url" name="webAppUrl" placeholder="https://script.google.com/macros/s/…/exec">
+      </label>
+      <label>Shared key (from setupKey in Apps Script)
+        <input type="text" name="sharedKey" autocomplete="off" spellcheck="false">
+      </label>
+      <label>Sheet link (for the "Open sheet" link)
+        <input type="url" name="sheetUrl">
+      </label>
+      <label>License group
+        <input type="text" name="groupName">
+      </label>
+      <label>Graphisoft organization ID
+        <input type="text" name="orgId" spellcheck="false">
+      </label>
+      <div class="row3">
+        <label>Every (min)
+          <input type="number" name="intervalMinutes" min="5" max="120" step="1">
+        </label>
+        <label>From (hour)
+          <input type="number" name="startHour" min="0" max="24" step="1">
+        </label>
+        <label>Until (hour)
+          <input type="number" name="endHour" min="0" max="24" step="1">
+        </label>
+      </div>
+      <label class="check"><input type="checkbox" name="weekends"> Log on weekends</label>
+      <label class="check"><input type="checkbox" name="keepAlive"> Keep a pinned Graphisoft tab open so the sign-in stays active</label>
+      <div><button type="submit" class="primary" id="save">Save and test</button></div>
+      <div class="formmsg" id="formMsg"></div>
+      <div class="formmsg" id="version" style="color:var(--muted)"></div>
+    </form>
+  </details>
+
+  <script src="lib.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

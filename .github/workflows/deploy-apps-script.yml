@@ -1,0 +1,47 @@
+name: Deploy Apps Script
+
+# Pushes apps-script/ to the sheet's Apps Script project and redeploys the web
+# app at the same URL. Does nothing until it is set up (see README, "Optional:
+# automatic Apps Script deploys"); until then, paste Code.gs by hand.
+
+on:
+  push:
+    branches: [main]
+    paths: ['apps-script/**']
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check setup
+        id: cfg
+        env:
+          CLASPRC: ${{ secrets.CLASPRC_JSON }}
+          DEPLOYMENT_ID: ${{ vars.APPS_SCRIPT_DEPLOYMENT_ID }}
+        run: |
+          if [ -z "$CLASPRC" ] || [ -z "$DEPLOYMENT_ID" ] || ! grep -Eq '"scriptId": *"[^"]+"' apps-script/.clasp.json; then
+            echo "::notice::Automatic Apps Script deploys aren't set up. Paste apps-script/Code.gs into the sheet's Apps Script editor for this change."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - if: steps.cfg.outputs.ready == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Push and redeploy
+        if: steps.cfg.outputs.ready == 'true'
+        working-directory: apps-script
+        env:
+          CLASPRC: ${{ secrets.CLASPRC_JSON }}
+          DEPLOYMENT_ID: ${{ vars.APPS_SCRIPT_DEPLOYMENT_ID }}
+        run: |
+          printf '%s' "$CLASPRC" > ~/.clasprc.json
+          npx -y @google/clasp@2.4.2 push --force
+          npx -y @google/clasp@2.4.2 deploy --deploymentId "$DEPLOYMENT_ID" --description "GitHub ${GITHUB_SHA::7}"
+          rm -f ~/.clasprc.json

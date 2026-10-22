@@ -1,0 +1,38 @@
+{
+  "manifest_version": 3,
+  "name": "Archicad License Logger",
+  "version": "1.2.0",
+  "description": "Logs CAST's floating Archicad license use from Graphisoft License Management to a Google Sheet.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAoSN9lCd/5UVjN4b3HlbZfYPXgCAZgcir18lugJ6ji0yfLy99UUTkf5VXce/BA3rOphYCfcNofasrNB1LyaldLoRwrO1uSqCfC6jF4SXNtVWF2AqnwKfxEOxVv7gLqWpSHl1ZFkoEkMOqvD/KjpnVE3ANBtzYc5Tb3AyGPfnH5IAx65O6nGDWSuGZTZ+Aee/m/phyKvhxhVBydJLMDDAtJYLSgI4J3opHbusneOs8RLQRWz6mAm5v6oc1tj00aq/gKkSSYefK/8lUZSg+kYXGEQ2W6Hi6luLNFSKV1eN0SYqYTnwEMmn1iM3AC4vjxAxisoNvGgpJ7yC2A1+kins37wIDAQAB",
+  "permissions": [
+    "alarms",
+    "storage",
+    "scripting",
+    "background",
+    "idle"
+  ],
+  "host_permissions": [
+    "https://licensemanagement.graphisoft.com/*",
+    "https://id.graphisoft.com/*",
+    "https://script.google.com/*",
+    "https://script.googleusercontent.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Archicad License Logger",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "name": "archicad-license-logger",
+  "private": true,
+  "description": "Logs CAST's floating Archicad license use to a Google Sheet",
+  "scripts": {
+    "test": "node tests/logger.test.js && node tests/alerts.test.js",
+    "test:browser": "node tests/selfupdate.test.js"
+  },
+  "devDependencies": {
+    "playwright": "1.56.0"
+  }
+}
