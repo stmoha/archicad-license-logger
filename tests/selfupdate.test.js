@@ -33,7 +33,10 @@ function idFromKey(key) {
   const browser = process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : { channel: 'chromium' };
   const ctx = await chromium.launchPersistentContext(path.join(work, 'profile'), Object.assign(browser, {
     headless: true,
-    args: [`--load-extension=${ext}`, '--no-sandbox', '--enable-unsafe-extension-debugging'],
+    args: [`--load-extension=${ext}`, '--no-sandbox', '--enable-unsafe-extension-debugging',
+      // Keep the test offline from Graphisoft and Google, so the extension's own
+      // startup reading and sign-in tab don't depend on the network.
+      '--host-resolver-rules=MAP *.graphisoft.com ~NOTFOUND, MAP *.google.com ~NOTFOUND, MAP *.googleusercontent.com ~NOTFOUND'],
     ignoreDefaultArgs: ['--disable-extensions', '--disable-component-extensions-with-background-pages'],
   }));
   try {
@@ -43,14 +46,15 @@ function idFromKey(key) {
     assert.strictEqual(id, idFromKey(manifest.key));
     console.log('  ok  extension ID is fixed by the manifest key (' + id + ')');
 
-    assert.strictEqual(await sw.evaluate(() => checkForUpdate()), false);
+    // Go through the extension's own one-at-a-time queue, as its timer does.
+    assert.strictEqual(await sw.evaluate(() => serial(() => checkForUpdate())), false);
     console.log('  ok  no reload when the version on disk is unchanged');
 
     const next = manifest.version.replace(/(\d+)$/, (n) => String(Number(n) + 1));
     fs.writeFileSync(path.join(ext, 'manifest.json'), JSON.stringify(Object.assign({}, manifest, { version: next }), null, 2));
     fs.appendFileSync(path.join(ext, 'lib.js'), '\nself.__pulledMarker = "new code";\n');
 
-    assert.strictEqual(await sw.evaluate(() => checkForUpdate()).catch(() => true), true);
+    assert.strictEqual(await sw.evaluate(() => serial(() => checkForUpdate())).catch(() => true), true);
     let after = null;
     for (let i = 0; i < 40 && !after; i++) {
       await new Promise((r) => setTimeout(r, 500));
@@ -63,10 +67,15 @@ function idFromKey(key) {
     assert.strictEqual(new URL(after.url()).host, id);
     assert.strictEqual(await after.evaluate(() => self.__pulledMarker), 'new code');
     const st = await after.evaluate(async () => (await chrome.storage.local.get('state')).state || {});
-    assert.strictEqual(st.updatedFrom, manifest.version);
+    assert.strictEqual(st.updatedFrom, manifest.version, 'state after reload: ' + JSON.stringify(st));
     console.log(`  ok  new files on disk: reloaded itself ${manifest.version} -> ${next}, same ID, new code running`);
     console.log('\n3 checks passed');
   } finally {
     await ctx.close();
   }
-})().catch((e) => { console.error('FAILED:', e); process.exit(1); });
+})().catch((e) => {
+  console.error('FAILED:', e);
+  // Make the reason readable from the pull request's checks, not only the raw log.
+  if (process.env.GITHUB_ACTIONS) console.log(`::error title=Self-update test::${String(e && e.stack || e).replace(/\r?\n/g, '%0A')}`);
+  process.exit(1);
+});
